@@ -50,22 +50,22 @@ async function run() {
         const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
         res.send({ token })
       })
-    //   app.get('/carts', verifyJWT, async (req, res) => {
-    //     const email = req.query.email;
+      app.get('/carts', verifyJWT, async (req, res) => {
+        const email = req.query.email;
   
-    //     if (!email) {
-    //       res.send([]);
-    //     }
+        if (!email) {
+          res.send([]);
+        }
   
-    //     const decodedEmail = req.decoded.email;
-    //     if (email !== decodedEmail) {
-    //       return res.status(403).send({ error: true, message: 'forbidden access' })
-    //     }
+        const decodedEmail = req.decoded.email;
+        if (email !== decodedEmail) {
+          return res.status(403).send({ error: true, message: 'forbidden access' })
+        }
   
-    //     const query = { email: email };
-    //     const result = await InstructorCollection.find(query).toArray();
-    //     res.send(result);
-    //   });
+        const query = { email: email };
+        const result = await InstructorCollection.find(query).toArray();
+        res.send(result);
+      });
     app.patch('/users/admin/:id', async (req, res) => {
         const id = req.params.id;
        
@@ -93,6 +93,18 @@ async function run() {
         const result = await userCollection.updateOne(filter, updateDoc);
         res.send(result);
   
+      })
+      app.get('/users/admin/:email', verifyJWT, async (req, res) => {
+        const email = req.params.email;
+  
+        if (req.decoded.email !== email) {
+          res.send({ admin: false })
+        }
+  
+        const query = { email: email }
+        const user = await userCollection.findOne(query);
+        const result = { admin: user?.role === 'admin' }
+        res.send(result);
       })
   
     app.get('/users', async (req, res) => {
