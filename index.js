@@ -50,7 +50,8 @@ async function run() {
         const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
         res.send({ token })
       })
-      app.get('/carts', verifyJWT, async (req, res) => {
+      // verifyJWT,
+      app.get('/carts', async (req, res) => {
         const email = req.query.email;
   
         if (!email) {
@@ -86,7 +87,7 @@ async function run() {
         const filter = { _id: new ObjectId(id) };
         const updateDoc = {
           $set: {
-            pud: 'Instructors'
+            Instructors: 'Instructors'
           },
         };
   
@@ -94,7 +95,8 @@ async function run() {
         res.send(result);
   
       })
-      app.get('/users/admin/:email', verifyJWT, async (req, res) => {
+      //admin verifyJWT,
+      app.get('/users/admin/:email',  async (req, res) => {
         const email = req.params.email;
   
         if (req.decoded.email !== email) {
@@ -106,11 +108,29 @@ async function run() {
         const result = { admin: user?.role === 'admin' }
         res.send(result);
       })
+      //InstructorName verifyJWT,
+      app.get('/users/Instructors/:email',  async (req, res) => {
+        const email = req.params.email;
+  
+        if (req.decoded.email !== email) {
+          res.send({ Instructors: false })
+        }
+  
+        const query = { email: email }
+        const user = await userCollection.findOne(query);
+        const result = { Instructors: user?.Instructors === 'Instructors' }
+        res.send(result);
+      })
   
     app.get('/users', async (req, res) => {
         const result = await userCollection.find().toArray();
         res.send(result);
       });
+      app.post('/class', async (req, res) => {
+        const newItem = req.body;
+        const result = await classCollection.insertOne(newItem)
+        res.send(result);
+      })
     app.post('/users',async(req,res)=>{
          const user = req.body;
          const query = {email: user.email}
