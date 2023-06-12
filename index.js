@@ -64,7 +64,7 @@ async function run() {
         }
   
         const query = { email: email };
-        const result = await InstructorCollection.find(query).toArray();
+        const result = await classCollection.find(query).toArray();
         res.send(result);
       });
     app.patch('/users/admin/:id', async (req, res) => {
@@ -121,6 +121,20 @@ async function run() {
         const result = { Instructors: user?.Instructors === 'Instructors' }
         res.send(result);
       })
+//verifyJWT,
+      app.post('/create-payment-intent',  async (req, res) => {
+        const { price } = req.body;
+        const amount = parseInt(price * 100);
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amount,
+          currency: 'usd',
+          payment_method_types: ['card']
+        });
+  
+        res.send({
+          clientSecret: paymentIntent.client_secret
+        })
+      })
   
     app.get('/users', async (req, res) => {
         const result = await userCollection.find().toArray();
@@ -173,7 +187,7 @@ run().catch(console.dir);
 app.get('/',(req,res)=>{
     res.send('server is sitting')
 })
-
+//t
 app.listen(port,()=>{
     console.log(`summer-camp-school-server${port}`);
 })
