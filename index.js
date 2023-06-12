@@ -187,7 +187,7 @@ run().catch(console.dir);
 app.get('/',(req,res)=>{
     res.send('server is sitting')
 })
-//try
+//try to
 app.listen(port,()=>{
     console.log(`summer-camp-school-server${port}`);
 })
