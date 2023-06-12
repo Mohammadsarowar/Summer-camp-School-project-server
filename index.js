@@ -95,8 +95,8 @@ async function run() {
         res.send(result);
   
       })
-      //admin verifyJWT,
-      app.get('/users/admin/:email',  async (req, res) => {
+      //admin 
+      app.get('/users/admin/:email',verifyJWT,  async (req, res) => {
         const email = req.params.email;
   
         if (req.decoded.email !== email) {
@@ -108,8 +108,8 @@ async function run() {
         const result = { admin: user?.role === 'admin' }
         res.send(result);
       })
-      //InstructorName verifyJWT,
-      app.get('/users/Instructors/:email',  async (req, res) => {
+      //InstructorName 
+      app.get('/users/Instructors/:email',verifyJWT,  async (req, res) => {
         const email = req.params.email;
   
         if (req.decoded.email !== email) {
