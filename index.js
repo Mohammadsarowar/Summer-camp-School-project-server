@@ -4,7 +4,7 @@ const app = express()
 const jwt = require('jsonwebtoken');
 require('dotenv').config()
 const port = process.env.PORT || 5000;
-
+const stripe = require("stripe")(process.env.SECRET_KEY);
 app.use(cors())
 app.use(express.json())
 
@@ -43,6 +43,7 @@ async function run() {
     const userCollection = client.db("Summer-school-data").collection("user");
     const classCollection = client.db("Summer-school-data").collection("students");
     const InstructorCollection = client.db("Summer-school-data").collection("Instructors");
+    const paymentCollection = client.db("Summer-school-data").collection("payments")
     // Connect the client to the server	(optional starting in v4.7)
    
     app.post('/jwt', (req, res) => {
@@ -50,8 +51,18 @@ async function run() {
         const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
         res.send({ token })
       })
-      // verifyJWT,
-      app.get('/carts', async (req, res) => {
+
+      const verifyAdmin = async (req, res, next) => {
+        const email = req.decoded.email;
+        const query = { email: email }
+        const user = await userCollection.findOne(query);
+        if (user?.role !== 'admin') {
+          return res.status(403).send({ error: true, message: 'forbidden message' });
+        }
+        next();
+      }
+      // 
+      app.get('/carts',verifyJWT, async (req, res) => {
         const email = req.query.email;
   
         if (!email) {
@@ -121,8 +132,8 @@ async function run() {
         const result = { Instructors: user?.Instructors === 'Instructors' }
         res.send(result);
       })
-//verifyJWT,
-      app.post('/create-payment-intent',  async (req, res) => {
+//
+      app.post('/create-payment-intent',verifyJWT,  async (req, res) => {
         const { price } = req.body;
         const amount = parseInt(price * 100);
         const paymentIntent = await stripe.paymentIntents.create({
@@ -136,6 +147,43 @@ async function run() {
         })
       })
   
+      app.post('/payments', verifyJWT, async (req, res) => {
+        const payment = req.body;
+        const insertResult = await paymentCollection.insertOne(payment);
+  
+        const query = { _id: { $in: payment.cartItems.map(id => new ObjectId(id)) } }
+        const deleteResult = await classCollection.deleteMany(query)
+  
+        res.send({ insertResult, deleteResult });
+      })
+
+      app.get('/admin-stats', verifyJWT, verifyAdmin, async (req, res) => {
+        const users = await userCollection.estimatedDocumentCount();
+        const products = await classCollection.estimatedDocumentCount();
+        const orders = await paymentCollection.estimatedDocumentCount();
+  
+        // best way to get sum of the price field is to use group and sum operator
+        /*
+          await paymentCollection.aggregate([
+            {
+              $group: {
+                _id: null,
+                total: { $sum: '$price' }
+              }
+            }
+          ]).toArray()
+        */
+  
+        const payments = await paymentCollection.find().toArray();
+        const revenue = payments.reduce( ( sum, payment) => sum + payment.price, 0)
+  
+        res.send({
+          revenue,
+          users,
+          products,
+          orders
+        })
+      })
     app.get('/users', async (req, res) => {
         const result = await userCollection.find().toArray();
         res.send(result);
@@ -171,7 +219,40 @@ async function run() {
         const cursor = await InstructorCollection.find().toArray();
         res.send(cursor)
     })
+    app.get('/order-stats', verifyJWT, verifyAdmin, async(req, res) =>{
+      const pipeline = [
+        {
+          $lookup: {
+            from: 'menu',
+            localField: 'menuItems',
+            foreignField: '_id',
+            as: 'menuItemsData'
+          }
+        },
+        {
+          $unwind: '$menuItemsData'
+        },
+        {
+          $group: {
+            _id: '$menuItemsData.category',
+            count: { $sum: 1 },
+            total: { $sum: '$menuItemsData.price' }
+          }
+        },
+        {
+          $project: {
+            category: '$_id',
+            count: 1,
+            total: { $round: ['$total', 2] },
+            _id: 0
+          }
+        }
+      ];
 
+      const result = await paymentCollection.aggregate(pipeline).toArray()
+      res.send(result)
+
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
